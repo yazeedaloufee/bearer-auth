@@ -2,6 +2,8 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 const users = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
@@ -10,16 +12,20 @@ const users = new mongoose.Schema({
 
 // Adds a virtual field to the schema. We can see it, but it never persists
 // So, on every user object ... this.token is now readable!
-users.virtual('token').get(function () {
+users.virtual('token').get( function () {
   let tokenObject = {
     username: this.username,
+    exp: Math.floor(Date.now() / 1000) + (60 * 1),
   }
-  return jwt.sign(tokenObject)
+  let token = jwt.sign(tokenObject,process.env.SECRET);
+  
+  return token
+  
 });
 
 users.pre('save', async function () {
   if (this.isModified('password')) {
-    this.password = bcrypt.hash(this.password, 10);
+    this.password = await bcrypt.hash(this.password, 10);
   }
 });
 
@@ -45,3 +51,4 @@ users.statics.authenticateWithToken = async function (token) {
 
 
 module.exports = mongoose.model('users', users);
+
